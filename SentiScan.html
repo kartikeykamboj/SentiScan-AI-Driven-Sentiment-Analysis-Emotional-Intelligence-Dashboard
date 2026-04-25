@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SentiScan – AI Sentiment & Emotion Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0b0f;
+    --surface: #12141a;
+    --card: #181b24;
+    --border: #252836;
+    --accent: #6c63ff;
+    --accent2: #00d4aa;
+    --accent3: #ff6b6b;
+    --accent4: #ffa94d;
+    --text: #e8eaf0;
+    --muted: #7a7f96;
+    --pos: #00d4aa;
+    --neg: #ff6b6b;
+    --neu: #a0a8c8;
+    --joy: #ffd700;
+    --anger: #ff4757;
+    --sad: #5352ed;
+    --fear: #8b5cf6;
+    --disgust: #2ed573;
+    --surprise: #ff6348;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE OVERLAY ── */
+  body::before {
+    content:''; position:fixed; inset:0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events:none; z-index:0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky; top:0; z-index:100;
+    background: rgba(10,11,15,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 64px;
+  }
+  .logo {
+    display:flex; align-items:center; gap:10px;
+    font-size:1.4rem; font-weight:800; letter-spacing:-0.5px;
+  }
+  .logo-icon {
+    width:36px; height:36px; border-radius:10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.1rem;
+  }
+  .logo span { color: var(--accent2); }
+  .nav-pills { display:flex; gap:6px; }
+  .nav-pill {
+    padding:6px 14px; border-radius:20px; font-size:0.8rem;
+    font-family:'Space Mono',monospace; cursor:pointer;
+    border:1px solid var(--border); background:transparent; color:var(--muted);
+    transition:.2s;
+  }
+  .nav-pill:hover, .nav-pill.active { border-color:var(--accent); color:var(--accent); background:rgba(108,99,255,.1); }
+  .header-badge {
+    display:flex; align-items:center; gap:6px;
+    font-size:0.75rem; color:var(--accent2); font-family:'Space Mono',monospace;
+  }
+  .dot { width:6px; height:6px; border-radius:50%; background:var(--accent2); animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+
+  /* ── MAIN LAYOUT ── */
+  main { position:relative; z-index:1; padding:2rem; max-width:1300px; margin:0 auto; }
+
+  /* ── HERO SECTION ── */
+  .hero {
+    text-align:center; padding:3rem 0 2rem;
+    border-bottom:1px solid var(--border);
+    margin-bottom:2rem;
+  }
+  .hero-tag {
+    display:inline-block; padding:4px 14px; border-radius:20px;
+    border:1px solid var(--accent); color:var(--accent);
+    font-size:0.75rem; font-family:'Space Mono',monospace;
+    margin-bottom:1rem; letter-spacing:2px;
+  }
+  .hero h1 {
+    font-size:clamp(2rem,5vw,3.5rem); font-weight:800; line-height:1.1;
+    letter-spacing:-1px; margin-bottom:0.8rem;
+  }
+  .hero h1 em { font-style:normal; color:var(--accent2); }
+  .hero p { color:var(--muted); font-size:1rem; max-width:500px; margin:0 auto; line-height:1.6; }
+
+  /* ── INPUT SECTION ── */
+  .input-section { margin-bottom:2rem; }
+  .input-card {
+    background:var(--card); border:1px solid var(--border); border-radius:20px;
+    padding:1.5rem; transition:.3s;
+  }
+  .input-card:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px rgba(108,99,255,.15); }
+  .input-label {
+    font-size:0.75rem; font-family:'Space Mono',monospace;
+    color:var(--muted); letter-spacing:2px; margin-bottom:.8rem;
+    display:flex; align-items:center; gap:8px;
+  }
+  .input-label::before {
+    content:''; display:inline-block; width:8px; height:8px;
+    border-radius:50%; background:var(--accent);
+  }
+  textarea {
+    width:100%; background:transparent; border:none; outline:none;
+    color:var(--text); font-family:'Syne',sans-serif; font-size:1.05rem;
+    resize:none; line-height:1.7; min-height:100px;
+  }
+  textarea::placeholder { color:var(--muted); }
+  .input-footer {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border);
+    flex-wrap:wrap; gap:10px;
+  }
+  .char-count { font-size:0.75rem; color:var(--muted); font-family:'Space Mono',monospace; }
+  .btn-row { display:flex; gap:10px; }
+  .btn {
+    padding:10px 24px; border-radius:12px; font-family:'Syne',sans-serif;
+    font-size:0.9rem; font-weight:700; cursor:pointer; border:none;
+    transition:.2s; display:flex; align-items:center; gap:8px;
+  }
+  .btn-primary {
+    background:linear-gradient(135deg,var(--accent),#8b7fff);
+    color:#fff; box-shadow:0 4px 20px rgba(108,99,255,.4);
+  }
+  .btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 30px rgba(108,99,255,.5); }
+  .btn-primary:active { transform:translateY(0); }
+  .btn-secondary {
+    background:var(--surface); color:var(--muted);
+    border:1px solid var(--border);
+  }
+  .btn-secondary:hover { color:var(--text); border-color:var(--muted); }
+  .btn:disabled { opacity:.5; cursor:not-allowed; transform:none !important; }
+
+  /* QUICK EXAMPLES */
+  .quick-examples {
+    display:flex; gap:8px; flex-wrap:wrap; margin-top:1rem;
+    align-items:center;
+  }
+  .qe-label { font-size:0.75rem; color:var(--muted); font-family:'Space Mono',monospace; }
+  .qe-chip {
+    padding:5px 12px; border-radius:20px; font-size:0.78rem;
+    background:var(--surface); border:1px solid var(--border);
+    cursor:pointer; transition:.2s; color:var(--muted);
+  }
+  .qe-chip:hover { border-color:var(--accent2); color:var(--accent2); }
+
+  /* ── LOADING ── */
+  .loading-bar {
+    height:3px; background:var(--border); border-radius:2px;
+    margin:1rem 0; overflow:hidden; display:none;
+  }
+  .loading-bar.active { display:block; }
+  .loading-fill {
+    height:100%; width:0%;
+    background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent));
+    background-size:200% 100%;
+    animation:loadSlide 1.5s ease-in-out forwards, shimmer 1.5s linear infinite;
+  }
+  @keyframes loadSlide { 0%{width:0%} 80%{width:90%} 100%{width:100%} }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+  /* ── RESULTS ── */
+  #results { display:none; animation:fadeUp .5s ease; }
+  #results.show { display:block; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+  /* ── STAT CARDS ── */
+  .stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+  .stat-card {
+    background:var(--card); border:1px solid var(--border); border-radius:16px;
+    padding:1.2rem; text-align:center; transition:.3s; position:relative; overflow:hidden;
+  }
+  .stat-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    background:var(--c, var(--accent));
+  }
+  .stat-card:hover { transform:translateY(-3px); border-color:var(--c, var(--accent)); }
+  .stat-icon { font-size:1.8rem; margin-bottom:.5rem; }
+  .stat-label { font-size:0.7rem; color:var(--muted); font-family:'Space Mono',monospace; letter-spacing:1.5px; margin-bottom:.4rem; }
+  .stat-val { font-size:1.8rem; font-weight:800; color:var(--c, var(--text)); }
+  .stat-sub { font-size:0.75rem; color:var(--muted); margin-top:.2rem; }
+
+  /* ── CHARTS GRID ── */
+  .charts-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem;
+  }
+  @media(max-width:700px){ .charts-grid{grid-template-columns:1fr;} }
+  .chart-card {
+    background:var(--card); border:1px solid var(--border); border-radius:20px; padding:1.5rem;
+  }
+  .chart-title {
+    font-size:0.75rem; font-family:'Space Mono',monospace;
+    color:var(--muted); letter-spacing:2px; margin-bottom:1.2rem;
+    display:flex; align-items:center; gap:8px;
+  }
+  .chart-title span { color:var(--accent); }
+  .chart-wrap { position:relative; height:220px; }
+
+  /* ── EMOTION BARS ── */
+  .emotion-bars { display:flex; flex-direction:column; gap:.8rem; margin-top:.5rem; }
+  .emo-row { display:flex; align-items:center; gap:12px; }
+  .emo-icon { font-size:1.2rem; width:28px; text-align:center; }
+  .emo-label { font-size:0.8rem; color:var(--muted); width:70px; font-family:'Space Mono',monospace; }
+  .emo-bar-bg { flex:1; height:8px; background:var(--border); border-radius:4px; overflow:hidden; }
+  .emo-bar-fill { height:100%; border-radius:4px; transition:width 1s cubic-bezier(.4,0,.2,1); width:0%; }
+  .emo-pct { font-size:0.8rem; font-weight:700; width:36px; text-align:right; font-family:'Space Mono',monospace; }
+
+  /* ── SENTIMENT RESULT BANNER ── */
+  .result-banner {
+    border-radius:16px; padding:1.5rem 2rem;
+    display:flex; align-items:center; gap:1.5rem;
+    margin-bottom:1.5rem; border:1px solid var(--bc, var(--border));
+    background: var(--bg2, var(--card));
+    animation:fadeUp .4s ease;
+  }
+  .result-emoji { font-size:3rem; }
+  .result-text h2 { font-size:1.8rem; font-weight:800; color:var(--tc, var(--text)); }
+  .result-text p { color:var(--muted); font-size:0.9rem; margin-top:.3rem; }
+  .confidence-pill {
+    margin-left:auto; padding:8px 18px; border-radius:20px;
+    background:rgba(255,255,255,.05); border:1px solid var(--border);
+    text-align:center;
+  }
+  .confidence-pill .cf-val { font-size:1.6rem; font-weight:800; font-family:'Space Mono',monospace; }
+  .confidence-pill .cf-label { font-size:0.65rem; color:var(--muted); letter-spacing:1.5px; }
+
+  /* ── ANALYSIS TABLE ── */
+  .analysis-card {
+    background:var(--card); border:1px solid var(--border); border-radius:20px;
+    padding:1.5rem; margin-bottom:1.5rem;
+  }
+  .analysis-title {
+    font-size:0.75rem; font-family:'Space Mono',monospace;
+    color:var(--muted); letter-spacing:2px; margin-bottom:1rem;
+  }
+  .keyword-cloud { display:flex; flex-wrap:wrap; gap:8px; }
+  .kw-tag {
+    padding:5px 14px; border-radius:20px; font-size:0.82rem;
+    font-family:'Space Mono',monospace; border:1px solid;
+    animation:fadeUp .3s ease both;
+  }
+  .kw-pos { color:var(--pos); border-color:rgba(0,212,170,.3); background:rgba(0,212,170,.08); }
+  .kw-neg { color:var(--neg); border-color:rgba(255,107,107,.3); background:rgba(255,107,107,.08); }
+  .kw-neu { color:var(--neu); border-color:rgba(160,168,200,.3); background:rgba(160,168,200,.08); }
+
+  /* ── HISTORY ── */
+  .history-section { margin-top:2rem; }
+  .history-title {
+    font-size:0.75rem; font-family:'Space Mono',monospace;
+    color:var(--muted); letter-spacing:2px; margin-bottom:1rem;
+    display:flex; align-items:center; gap:8px;
+  }
+  .history-title::before {
+    content:''; display:inline-block; width:8px; height:8px;
+    border-radius:50%; background:var(--accent4);
+  }
+  .history-list { display:flex; flex-direction:column; gap:.6rem; }
+  .history-item {
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:.9rem 1.2rem; display:flex; align-items:center; gap:12px;
+    transition:.2s; cursor:pointer;
+  }
+  .history-item:hover { border-color:var(--accent); }
+  .h-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .h-text { flex:1; font-size:0.85rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .h-sentiment { font-size:0.75rem; font-weight:700; font-family:'Space Mono',monospace; }
+  .h-time { font-size:0.7rem; color:var(--muted); font-family:'Space Mono',monospace; flex-shrink:0; }
+
+  /* ── TABS ── */
+  .tabs { display:flex; gap:4px; margin-bottom:1.5rem; background:var(--surface); padding:4px; border-radius:14px; border:1px solid var(--border); }
+  .tab { flex:1; padding:10px; text-align:center; border-radius:10px; cursor:pointer; font-size:0.85rem; font-weight:600; color:var(--muted); transition:.2s; }
+  .tab.active { background:var(--card); color:var(--text); box-shadow:0 2px 8px rgba(0,0,0,.3); }
+
+  /* ── ABOUT SECTION ── */
+  .about-section { display:none; }
+  .about-section.show { display:block; }
+  .about-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1rem; }
+  .about-card {
+    background:var(--card); border:1px solid var(--border); border-radius:16px;
+    padding:1.5rem;
+  }
+  .about-card h3 { font-size:1rem; margin-bottom:.5rem; display:flex; align-items:center; gap:8px; }
+  .about-card p { font-size:0.85rem; color:var(--muted); line-height:1.6; }
+  .tech-pills { display:flex; flex-wrap:wrap; gap:6px; margin-top:.8rem; }
+  .tech-pill {
+    padding:3px 10px; border-radius:10px; font-size:0.72rem;
+    background:rgba(108,99,255,.15); color:var(--accent); border:1px solid rgba(108,99,255,.3);
+    font-family:'Space Mono',monospace;
+  }
+
+  /* ── TEAM ── */
+  .team-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem; }
+  .team-card {
+    background:var(--card); border:1px solid var(--border); border-radius:16px;
+    padding:1.5rem; text-align:center;
+  }
+  .team-avatar {
+    width:60px; height:60px; border-radius:50%; margin:0 auto .8rem;
+    display:flex; align-items:center; justify-content:center; font-size:1.5rem;
+    border:2px solid var(--accent);
+    background: linear-gradient(135deg,var(--accent),var(--accent2));
+  }
+  .team-name { font-weight:700; margin-bottom:.3rem; }
+  .team-id { font-size:0.72rem; color:var(--muted); font-family:'Space Mono',monospace; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:600px){
+    header { padding:0 1rem; }
+    main { padding:1rem; }
+    .hero h1 { font-size:1.8rem; }
+    .confidence-pill { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🧠</div>
+    Senti<span>Scan</span>
+  </div>
+  <div class="nav-pills">
+    <button class="nav-pill active" onclick="switchTab('analyze')">Analyze</button>
+    <button class="nav-pill" onclick="switchTab('about')">About</button>
+  </div>
+  <div class="header-badge">
+    <div class="dot"></div>
+    AI LIVE
+  </div>
+</header>
+
+<main>
+
+<!-- ── ANALYZE TAB ── -->
+<div id="tab-analyze">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-tag">NLP + DEEP LEARNING + LLM</div>
+    <h1>Understand Every <em>Emotion</em><br/>Behind Every Word</h1>
+    <p>Paste any text — reviews, tweets, feedback — and SentiScan reveals the sentiment and emotional intelligence hidden within.</p>
+  </div>
+
+  <!-- INPUT -->
+  <div class="input-section">
+    <div class="input-card">
+      <div class="input-label">ENTER TEXT TO ANALYZE</div>
+      <textarea id="inputText" rows="4" maxlength="1000"
+        placeholder="Type or paste any text here... e.g. 'The product was amazing but the delivery took forever and the packaging was terrible.'"></textarea>
+      <div class="input-footer">
+        <div class="char-count"><span id="charCount">0</span> / 1000 characters</div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
+          <button class="btn btn-primary" id="analyzeBtn" onclick="analyze()">
+            <span>⚡</span> Analyze Now
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="quick-examples">
+      <span class="qe-label">TRY:</span>
+      <span class="qe-chip" onclick="setExample(0)">😊 Positive review</span>
+      <span class="qe-chip" onclick="setExample(1)">😡 Negative feedback</span>
+      <span class="qe-chip" onclick="setExample(2)">😐 Mixed opinion</span>
+      <span class="qe-chip" onclick="setExample(3)">😢 Sad message</span>
+      <span class="qe-chip" onclick="setExample(4)">😲 Surprised customer</span>
+    </div>
+  </div>
+
+  <!-- LOADING BAR -->
+  <div class="loading-bar" id="loadingBar"><div class="loading-fill"></div></div>
+
+  <!-- RESULTS -->
+  <div id="results">
+
+    <!-- BANNER -->
+    <div id="resultBanner" class="result-banner">
+      <div class="result-emoji" id="resEmoji">😊</div>
+      <div class="result-text">
+        <h2 id="resSentiment">POSITIVE</h2>
+        <p id="resDescription">Strong positive sentiment detected</p>
+      </div>
+      <div class="confidence-pill">
+        <div class="cf-val" id="resConfidence">94%</div>
+        <div class="cf-label">CONFIDENCE</div>
+      </div>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div class="stat-grid">
+      <div class="stat-card" style="--c:var(--pos)">
+        <div class="stat-icon">✅</div>
+        <div class="stat-label">POSITIVE</div>
+        <div class="stat-val" id="posScore">0%</div>
+        <div class="stat-sub">sentiment score</div>
+      </div>
+      <div class="stat-card" style="--c:var(--neg)">
+        <div class="stat-icon">❌</div>
+        <div class="stat-label">NEGATIVE</div>
+        <div class="stat-val" id="negScore">0%</div>
+        <div class="stat-sub">sentiment score</div>
+      </div>
+      <div class="stat-card" style="--c:var(--neu)">
+        <div class="stat-icon">➖</div>
+        <div class="stat-label">NEUTRAL</div>
+        <div class="stat-val" id="neuScore">0%</div>
+        <div class="stat-sub">sentiment score</div>
+      </div>
+      <div class="stat-card" style="--c:var(--accent4)">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-label">POLARITY</div>
+        <div class="stat-val" id="polarityScore">0.0</div>
+        <div class="stat-sub">-1 (neg) to +1 (pos)</div>
+      </div>
+      <div class="stat-card" style="--c:var(--accent)">
+        <div class="stat-icon">📊</div>
+        <div class="stat-label">SUBJECTIVITY</div>
+        <div class="stat-val" id="subjectivityScore">0%</div>
+        <div class="stat-sub">opinion strength</div>
+      </div>
+      <div class="stat-card" style="--c:var(--accent2)">
+        <div class="stat-icon">🔤</div>
+        <div class="stat-label">WORD COUNT</div>
+        <div class="stat-val" id="wordCount">0</div>
+        <div class="stat-sub">tokens processed</div>
+      </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="charts-grid">
+      <!-- Donut Chart -->
+      <div class="chart-card">
+        <div class="chart-title"><span>01</span> SENTIMENT DISTRIBUTION</div>
+        <div class="chart-wrap"><canvas id="donutChart"></canvas></div>
+      </div>
+      <!-- Emotion Bars -->
+      <div class="chart-card">
+        <div class="chart-title"><span>02</span> EMOTION BREAKDOWN</div>
+        <div class="emotion-bars" id="emotionBars">
+          <div class="emo-row">
+            <div class="emo-icon">😊</div>
+            <div class="emo-label">JOY</div>
+            <div class="emo-bar-bg"><div class="emo-bar-fill" id="bar-joy" style="background:var(--joy);width:0%"></div></div>
+            <div class="emo-pct" id="pct-joy" style="color:var(--joy)">0%</div>
+          </div>
+          <div class="emo-row">
+            <div class="emo-icon">😡</div>
+            <div class="emo-label">ANGER</div>
+            <div class="emo-bar-bg"><div class="emo-bar-fill" id="bar-anger" style="background:var(--anger);width:0%"></div></div>
+            <div class="emo-pct" id="pct-anger" style="color:var(--anger)">0%</div>
+          </div>
+          <div class="emo-row">
+            <div class="emo-icon">😢</div>
+            <div class="emo-label">SADNESS</div>
+            <div class="emo-bar-bg"><div class="emo-bar-fill" id="bar-sad" style="background:var(--sad);width:0%"></div></div>
+            <div class="emo-pct" id="pct-sad" style="color:var(--sad)">0%</div>
+          </div>
+          <div class="emo-row">
+            <div class="emo-icon">😨</div>
+            <div class="emo-label">FEAR</div>
+            <div class="emo-bar-bg"><div class="emo-bar-fill" id="bar-fear" style="background:var(--fear);width:0%"></div></div>
+            <div class="emo-pct" id="pct-fear" style="color:var(--fear)">0%</div>
+          </div>
+          <div class="emo-row">
+            <div class="emo-icon">🤢</div>
+            <div class="emo-label">DISGUST</div>
+            <div class="emo-bar-bg"><div class="emo-bar-fill" id="bar-disgust" style="background:var(--disgust);width:0%"></div></div>
+            <div class="emo-pct" id="pct-disgust" style="color:var(--disgust)">0%</div>
+          </div>
+          <div class="emo-row">
+            <div class="emo-icon">😲</div>
+            <div class="emo-label">SURPRISE</div>
+            <div class="emo-bar-bg"><div class="emo-bar-fill" id="bar-surprise" style="background:var(--surprise);width:0%"></div></div>
+            <div class="emo-pct" id="pct-surprise" style="color:var(--surprise)">0%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KEYWORD ANALYSIS -->
+    <div class="analysis-card">
+      <div class="analysis-title">03 — KEYWORD SENTIMENT ANALYSIS</div>
+      <div class="keyword-cloud" id="keywordCloud"></div>
+    </div>
+
+    <!-- HISTORY CHART -->
+    <div class="chart-card" style="margin-bottom:1.5rem;">
+      <div class="chart-title"><span>04</span> SESSION TREND (last 8 analyses)</div>
+      <div class="chart-wrap" style="height:180px;"><canvas id="trendChart"></canvas></div>
+    </div>
+
+  </div><!-- /results -->
+
+  <!-- HISTORY -->
+  <div class="history-section" id="historySection" style="display:none">
+    <div class="history-title">ANALYSIS HISTORY</div>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+</div><!-- /tab-analyze -->
+
+<!-- ── ABOUT TAB ── -->
+<div id="tab-about" class="about-section">
+  <div class="hero" style="padding:2rem 0 1.5rem;">
+    <div class="hero-tag">B.TECH CSE PROJECT</div>
+    <h1>About <em>SentiScan</em></h1>
+    <p>NIET, Greater Noida · Under supervision of Mr. Ankit Sharma</p>
+  </div>
+
+  <div class="about-grid" style="margin-bottom:1.5rem;">
+    <div class="about-card">
+      <h3>🧠 What It Does</h3>
+      <p>SentiScan analyzes any text and instantly tells you if it's positive, negative or neutral — AND identifies the specific emotion behind it (joy, anger, sadness, etc.) using advanced AI.</p>
+    </div>
+    <div class="about-card">
+      <h3>⚙️ How It Works</h3>
+      <p>Text goes through NLP preprocessing → TF-IDF feature extraction → ML classification (Naive Bayes, Logistic Regression, LSTM, BERT) → LLM emotion detection → Dashboard visualization.</p>
+    </div>
+    <div class="about-card">
+      <h3>🎯 Why It Matters</h3>
+      <p>Businesses analyze millions of reviews, tweets and messages daily. Doing this manually is impossible. SentiScan automates this with 95%+ accuracy in real-time.</p>
+    </div>
+    <div class="about-card">
+      <h3>🚀 Key Innovation</h3>
+      <p>Unlike basic tools that only give Positive/Negative, SentiScan detects 6 granular emotions using LLM APIs — a first in unified sentiment + emotion dashboards.</p>
+    </div>
+  </div>
+
+  <div class="about-card" style="margin-bottom:1.5rem;">
+    <h3 style="margin-bottom:.8rem;">🛠️ Technology Stack</h3>
+    <div class="tech-pills">
+      <span class="tech-pill">React.js</span>
+      <span class="tech-pill">Python</span>
+      <span class="tech-pill">Flask/FastAPI</span>
+      <span class="tech-pill">BERT</span>
+      <span class="tech-pill">LSTM</span>
+      <span class="tech-pill">Naive Bayes</span>
+      <span class="tech-pill">Logistic Regression</span>
+      <span class="tech-pill">NLTK</span>
+      <span class="tech-pill">spaCy</span>
+      <span class="tech-pill">TF-IDF</span>
+      <span class="tech-pill">Scikit-learn</span>
+      <span class="tech-pill">TensorFlow</span>
+      <span class="tech-pill">OpenAI API</span>
+      <span class="tech-pill">Chart.js</span>
+      <span class="tech-pill">MongoDB</span>
+    </div>
+  </div>
+
+  <div style="margin-bottom:1rem;" class="history-title">TEAM MEMBERS</div>
+  <div class="team-grid">
+    <div class="team-card">
+      <div class="team-avatar">V</div>
+      <div class="team-name">Vineet Kumar</div>
+      <div class="team-id">2401331930046</div>
+    </div>
+    <div class="team-card">
+      <div class="team-avatar">K</div>
+      <div class="team-name">Kartikey Kamboj</div>
+      <div class="team-id">2401331930023</div>
+    </div>
+    <div class="team-card">
+      <div class="team-avatar">R</div>
+      <div class="team-name">Rohit Singh</div>
+      <div class="team-id">2401331930033</div>
+    </div>
+    <div class="team-card">
+      <div class="team-avatar">A</div>
+      <div class="team-name">Aman Kumar Mishra</div>
+      <div class="team-id">2401331930005</div>
+    </div>
+    <div class="team-card">
+      <div class="team-avatar">🎓</div>
+      <div class="team-name">Mr. Ankit Sharma</div>
+      <div class="team-id">Supervisor · NIET</div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// SENTISCAN — CORE AI ENGINE (Rule-based NLP + Scoring)
+// ═══════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════════
+// SENTISCAN — MEGA MULTILINGUAL LEXICON ENGINE v3.0
+// Covers: English · Hindi (Roman) · Hinglish · Abusive · Sarcasm · Slang
+// ══════════════════════════════════════════════════════════════════════
+
+// ── POSITIVE WORDS (English + Hindi + Hinglish + Slang) ──────────────
+const POSITIVE_WORDS = new Set([
+  // Core English positive
+  'amazing','awesome','excellent','fantastic','wonderful','brilliant','outstanding','superb',
+  'perfect','great','good','love','loved','best','beautiful','happy','happiness','joy','joyful',
+  'excited','exciting','delightful','delighted','thrilled','pleased','glad','impressed',
+  'impressive','marvelous','exceptional','magnificent','terrific','sensational','incredible',
+  'extraordinary','fabulous','splendid','glorious','cheerful','pleasant','nice','positive',
+  'fortunate','lucky','successful','win','winner','recommend','recommended','helpful','useful',
+  'efficient','effective','enjoy','enjoyed','enjoying','fun','comfortable','convenient','easy',
+  'fast','quick','clean','fresh','tasty','delicious','smooth','professional','friendly','kind',
+  'caring','supportive','generous','honest','reliable','trustworthy','safe','secure','innovative',
+  'creative','inspiring','motivated','enthusiastic','energetic','confident','satisfied','peaceful',
+  'calm','relaxed','blessed','grateful','thankful','appreciated','loved','adored','cherished',
+  'precious','worthy','valuable','perfect','flawless','ideal','divine','heavenly','breathtaking',
+  'stunning','gorgeous','radiant','vibrant','alive','thriving','flourishing','prosperous',
+  'abundant','rich','wealthy','powerful','strong','brave','courageous','heroic','noble','wise',
+  'intelligent','smart','clever','gifted','talented','skilled','capable','competent','qualified',
+  'experienced','expert','master','champion','legend','star','icon','genius','prodigy',
+  'graceful','elegant','classy','stylish','charming','attractive','handsome','cute','adorable',
+  'sweet','lovely','heartwarming','touching','moving','inspiring','uplifting','encouraging',
+  'motivating','empowering','life-changing','transformative','revolutionary','groundbreaking',
+  'milestone','achievement','accomplishment','victory','triumph','success','progress','growth',
+  'improvement','advancement','upgrade','enhance','optimize','streamline','innovative','unique',
+  'special','exclusive','premium','luxury','top-notch','first-class','world-class','elite',
+
+  // Hinglish positive / Roman Hindi
+  'bahut acha','bahut accha','bahut achha','acha','accha','achha','achhe','badhiya','mast',
+  'zabardast','kamaal','shandar','lajawaab','behtareen','shandaar','ekdum','ekdum mast',
+  'ekdum badhiya','sahi hai','bilkul sahi','bindaas','jhakaas','dhamaka','dhamakedar',
+  'super hai','solid hai','mind blowing','mann gaye','wah','wah wah','waah','kya baat',
+  'kya baat hai','superb yaar','great yaar','awesome yaar','ek number','number one',
+  'top class','khush','khushi','anand','sukh','shanti','pyaar','prem','mohabbat','ishq',
+  'dil se','dil khush','heart touching','bahut sundar','sundar','sunder','pyaara','pyari',
+  'acchi tarah','sahi tarah','bilkul theek','perfect hai','dam hai','dum hai','maja aaya',
+  'maja aya','maza aaya','enjoy kiya','pasand aaya','pasand aya','pasand hai','liked it',
+  'loved it','best hai','sabse acha','sabse badhiya','no 1','no1','top','topper',
+  'khatarnak','khatarnaak','hatke','unique hai','sahi baat','sach mein acha','seedha mast',
+  'ek dum','ekdum solid','full on','full mast','full enjoy','poora acha','pura acha',
+
+  // Slang / Internet positive
+  'lit','fire','goat','goated','slaps','bussin','based','chad','king','queen','slay','slaying',
+  'valid','bet','facts','no cap','lowkey great','highkey love','hits different','banger',
+  'w','huge w','absolute w','dope','sick','mad good','insane','crazy good','too good',
+  'gg','well played','clutch','poggers','pog','epic','legendary','god tier','ss tier',
+  'top tier','built different','different breed','on point','on fleek','a1','100','💯',
+  'straight fire','heat','peak','peak performance','underrated','hidden gem','must try',
+  'worth it','value for money','10/10','5 star','five star','five stars','5 stars',
+]);
+
+// ── NEGATIVE WORDS (English + Hindi + Hinglish + Abusive + Threats) ──
+const NEGATIVE_WORDS = new Set([
+  // Core English negative
+  'terrible','horrible','awful','dreadful','disgusting','pathetic','useless','worthless',
+  'poor','bad','worst','hate','hated','ugly','sad','unhappy','angry','furious','disappointed',
+  'disappointing','frustrating','frustrated','annoying','annoyed','irritated','irritating',
+  'upset','depressed','depressing','miserable','devastated','heartbroken','painful','hurt',
+  'broken','failed','failure','problem','problems','issue','issues','complaint','complaints',
+  'wrong','error','mistake','bug','crash','slow','difficult','hard','complicated','confusing',
+  'expensive','overpriced','waste','wasted','loss','lost','defective','damaged','rude',
+  'unprofessional','unhelpful','unreliable','unsafe','dangerous','toxic','harmful','cheating',
+  'scam','fraud','lie','lied','lies','fake','false','misleading','avoid','faulty','corrupt',
+  'broken','inferior','substandard','mediocre','below average','unacceptable','intolerable',
+  'unbearable','insufferable','hopeless','pointless','meaningless','worthless','fruitless',
+  'ineffective','inadequate','insufficient','incomplete','imperfect','flawed','deficient',
+  'negligent','careless','irresponsible','incompetent','unqualified','unskilled','amateur',
+  'sloppy','lazy','selfish','greedy','arrogant','rude','obnoxious','offensive','insulting',
+  'humiliating','degrading','disrespectful','abusive','manipulative','deceptive','dishonest',
+  'untrustworthy','unreliable','inconsistent','unstable','broken','crashing','lagging',
+  'overheating','noisy','smelly','disgusting','repulsive','revolting','nauseating','vomit',
+  'regret','regretted','regretting','mistake','blunder','disaster','catastrophe','crisis',
+
+  // Violence / Threats / Danger
+  'kill','killed','killing','killer','kills','murder','murdered','murdering','murderer',
+  'dead','death','die','dying','dies','died','dump','dumpbody','shoot','shot','shooting',
+  'stab','stabbed','stabbing','attack','attacked','attacking','beat','beaten','beating',
+  'destroy','destroyed','destroying','harm','harming','harmed','threaten','threatening',
+  'threatened','threat','threats','violence','violent','assault','assaulted','assaulting',
+  'abuse','abused','abusing','abusive','rape','raping','raped','molest','molested',
+  'kidnap','kidnapped','kidnapping','torture','tortured','torturing','punish','punished',
+  'blood','bloody','brutal','brutally','execute','executed','execution','weapon','weapons',
+  'gun','guns','knife','knives','bomb','bombs','explode','explosion','explosive','obliterate',
+  'annihilate','slaughter','massacre','choke','strangle','strangled','poison','poisoned',
+  'burn','burned','burning','bury','buried','drown','drowned','drowning','suffer','suffering',
+  'agony','terror','terrorize','horrify','horrified','evil','wicked','cruel','savage',
+  'vicious','deadly','lethal','fatal','injury','injured','wound','wounded','bleed','bleeding',
+  'revenge','retaliate','retaliation','enemy','enemies','monster','predator','criminal',
+  'felon','convict','thug','gang','gangster','mafia','hitman','assassin','sniper',
+  'hostage','hijack','hijacking','ransom','blackmail','extort','extortion','threat',
+  'intimidate','intimidation','bully','bullying','harass','harassment','stalk','stalking',
+
+  // Hindi abusive (romanized)
+  'madarchod','maderchod','maadarchodd','mc','bhen ke lode','bhenchod','bc','behenchod',
+  'behanchod','bhainchod','bsdk','bsdke','bsdki','chutiya','chutiye','chutiyapa',
+  'gandu','gaandu','gaand','gaand mara','gaand marwa','randi','raand','randi ka bacha',
+  'harami','haramzada','haramzadi','haraami','kamina','kamine','kaminey','kamini',
+  'kutte','kutta','kutiya','kuttiya','saala','saale','saali','sala','sale','sali',
+  'ullu','ullu ka pattha','gadha','gadhe','gadhaa','bakwaas','bakwas','bekar','faltu',
+  'nikamma','nikammi','nalayak','nalayak','namak haram','namakharaam','gaddar','traitor',
+  'besharam','besharami','bewakoof','bewakuf','murkh','murakh','badboo','badtameez',
+  'badtameezi','ghatiya','ghataiya','suar','suwar','suwer','suwarr','jhatu','jhaat',
+  'jhaat ke baal','lund','lauda','laude','lauda lag gaya','maa ki aankh','teri maa',
+  'teri maa ki','teri maa ka','bhosdike','bhosdiwale','bhosdiwala','rand','rund',
+  'teri maa ki aankh','teri behen ki','teri behen ka','teri behen ko','hijra','hijre',
+  'chakka','chakke','napunsak','napunsak','na mard','namard','maa chod','baap chod',
+  'chod','chodd','choda','chodi','chodo','chodna','chodne','chodenge','chodta','chodti',
+
+  // Hinglish negative / frustration
+  'bakwas','bakwaas','bekar','faltu','ghatiya','worst hai','bahut bura','bura laga',
+  'nahi pasand','pasand nahi','acha nahi','accha nahi','acha nahi laga','bura','buri',
+  'bure','pagal','paagal','bewakoof','idiot','stupid','duffer','nikamma','useless hai',
+  'kaam ka nahi','kuch kaam ka nahi','time waste','paisa waste','barbaad','barbad',
+  'loot liya','thag liya','dhoka','dhoka diya','cheated','fraud nikla','bekar hai',
+  'bilkul bekar','bekaar','ekdum bekar','total waste','pura waste','poora waste',
+  'maza nahi aaya','enjoy nahi hua','boring','bahut boring','bore ho gaya','pagalpan',
+  'gadhepon','galat','galat hai','sab galat','poora galat','totally wrong','ek number bekar',
+  'zero','zeroes','zero quality','ghanta','ghanta kuch nahi','kuch nahi','koi kaam nahi',
+  'time barbaad','paise barbaad','baar baar problem','har baar dikkat','dikkat hai',
+  'takleef','pareshaan','pareshan','pareshani','tension','bahut tension','stress',
+  'gussa','gusse mein','bahut gussa','krodh','naraaz','naraz','naraazgi','jhooth',
+  'jhoota','jhooti','makkar','dhokhebaaz','theek nahi','sahi nahi','sahi nahi hai',
+
+  // Emotional distress
+  'depressed','depression','anxiety','anxious','panic','breakdown','hopeless','helpless',
+  'suicidal','suicide','self harm','self-harm','cutting','overdose','worthless feeling',
+  'hate myself','hate my life','want to die','end it all','give up','giving up',
+  'cant go on','cannot go on','no point','no reason to live','life is meaningless',
+  'crying all night','sobbing','weeping','tears','numb','empty inside','broken inside',
+
+  // Sarcasm markers (context-based)
+  'oh sure','oh yeah right','totally great','absolutely wonderful not','wow so amazing',
+  'great job not','thanks for nothing','very helpful not','brilliant idea not',
+
+  // General internet negative slang
+  'l','huge l','massive l','ratio','ratioed','trash','garbage','dogwater','bot','noob',
+  'cringe','yikes','oof','bruh','nah bro','mid','below mid','ass','terrible play',
+  'not it','not the one','no good','bad take','hot garbage','absolute trash','waste of time',
+]);
+
+// ── HINGLISH PATTERNS — phrase-level matching ────────────────────────
+const HINGLISH_POSITIVE_PHRASES = [
+  'bahut acha laga','kya baat hai','maza aa gaya','maza agaya','dil khush ho gaya',
+  'ek number hai','full paisa vasool','paisa vasool','totally worth it','maja aaya',
+  'mast experience','solid product','solid service','ekdum solid','top notch',
+  'ek dum mast','full on mast','bahut pasand aaya','pasand aaya','dil se acha laga',
+  'sach mein acha hai','clearly best','clearly better','clearly winner',
+];
+const HINGLISH_NEGATIVE_PHRASES = [
+  'bahut bura laga','bilkul acha nahi','bekar hai yaar','time waste hai','paisa barbad',
+  'kuch kaam ka nahi','zero quality','total fraud','dhoka diya','thag liya',
+  'ek dum bekar','koi kaam nahi','maza nahi aaya','enjoy nahi hua','sahi nahi hai',
+  'teri maa','teri behen','gaand mara','chup kar','shut up','band kar',
+  'will kill','want to kill','going to kill','i will kill','i will murder',
+  'dump your body','dump the body','kill you','murder you','kill him','kill her',
+  'destroy you','end you','finish you','finish him','finish her','eliminate you',
+];
+
+// ── SARCASM PATTERNS ──────────────────────────────────────────────────
+const SARCASM_PATTERNS = [
+  /oh\s+(sure|yeah|great|wonderful|perfect|amazing|brilliant|fantastic)/i,
+  /(totally|absolutely|so|very)\s+(great|amazing|wonderful|helpful|useful)\s*(not|NOT)/i,
+  /thanks\s+for\s+nothing/i,
+  /great\s+job\s*(not|NOT|\(not\))/i,
+  /wow\s+so\s+(helpful|useful|great|amazing|wonderful)/i,
+  /because\s+that('s|\s+is)\s+(so|very|totally|definitely)\s+(helpful|useful)/i,
+  /yeah\s+right/i,
+  /sure\s+it\s+(is|was|will)/i,
+  /as\s+if/i,
+  /haha\s+(yeah|sure|right|okay|ok)/i,
+  /lol\s+(sure|okay|ok|right|yeah|whatever)/i,
+  /clearly\s+(the\s+)?(best|worst|greatest|amazing)/i,
+];
+
+// ── EMOTION LEXICON (Massive) ─────────────────────────────────────────
+const EMOTION_LEXICON = {
+  joy: [
+    'happy','happiness','joy','joyful','joyous','excited','excitement','thrilled','thrill',
+    'amazing','love','loved','loving','wonderful','fantastic','great','glad','pleased',
+    'delighted','delight','cheerful','cheery','elated','euphoric','blissful','ecstatic',
+    'celebrate','celebration','celebrating','enjoy','enjoyed','enjoying','fun','smile',
+    'smiling','laugh','laughing','laughter','giggle','giggling','overjoyed','jubilant',
+    'content','contented','satisfied','grateful','thankful','blessed','fortunate','lucky',
+    'winning','won','victory','triumph','achieve','achieved','accomplished','proud','pride',
+    // Hinglish joy
+    'khushi','anand','mast','maza','maja','zabardast','shandar','badhiya','wah','waah',
+    'bahut acha','kya baat','dil khush','maja aaya','maza aaya','pyaar','prem','ishq',
+  ],
+  anger: [
+    'angry','anger','furious','fury','rage','enraged','irritated','annoyed','frustrated',
+    'mad','outraged','infuriated','livid','seething','hostile','aggressive','aggression',
+    'hatred','hate','despise','loathe','bitter','resentful','vengeful','wrath','wrathful',
+    'indignant','incensed','irate','provoked','offended','insulted','disrespected',
+    // Violence / threats = anger
+    'kill','killed','killing','murder','murdered','murderer','attack','attacked','beat',
+    'beaten','stab','stabbed','shoot','shot','destroy','destroyed','bomb','explode',
+    'slaughter','massacre','choke','strangle','revenge','retaliate','threaten','threatening',
+    'brutal','savage','vicious','violent','violence','assault','weapon','gun','knife',
+    'enemy','enemies','evil','wicked','cruel','monster','demon','devil',
+    // Hindi anger
+    'gussa','krodh','naraaz','naraz','jhooth','makkar','harami','haramzada','kamina',
+    'kutte','kutta','gadha','ullu','bewakoof','chutiya','gandu','saala','badtameez',
+    'madarchod','bhenchod','mc','bc','bsdk','will kill','maarunga','maarta hun',
+    'tod dunga','jalaa dunga','barbaad kar dunga','tabahi machaunga',
+  ],
+  sadness: [
+    'sad','sadness','unhappy','depressed','depression','miserable','heartbroken','devastated',
+    'grief','sorrow','sorrowful','cry','crying','cried','tears','tearful','lonely','alone',
+    'hopeless','helpless','lost','mourning','melancholy','gloomy','disappointed','disappointment',
+    'suffer','suffering','agony','anguish','despair','despondent','dejected','downcast',
+    'broken','shattered','crushed','gutted','distraught','inconsolable','numb','empty',
+    'dead inside','pain','painful','hurt','wounded','scarred','abandoned','rejected','unloved',
+    'unwanted','forgotten','ignored','invisible','worthless','meaningless','pointless',
+    // Hindi sadness
+    'dukh','dard','takleef','pareshaan','pareshan','rona','aansu','akela','akeli',
+    'tanha','udaas','gham','bura laga','dil toota','dil dukhaya','dil dard','dil toot gaya',
+    'bekar','barbad','barbaad','khatam','sab khatam','sab kuch khatam','ab kya fayda',
+  ],
+  fear: [
+    'scared','fear','afraid','terrified','terrifying','terrify','frightened','frightening',
+    'anxious','anxiety','worried','worry','nervous','panic','panicking','horror','horrifying',
+    'dread','dreading','fearful','phobia','danger','dangerous','unsafe','alarmed','startled',
+    'threat','threatened','threatening','intimidated','intimidating','petrified','trembling',
+    'shaking','shivering','goosebumps','nightmare','nightmares','traumatized','trauma',
+    // Violence causing fear
+    'kill','murder','kidnap','kidnapped','torture','tortured','poison','poisoned','bomb',
+    'explode','explosion','gun','knife','weapon','attack','assault','terrorist','terrorism',
+    'deadly','lethal','fatal','danger','dangerous','life threat','death threat',
+    // Hindi fear
+    'darr','dar','darr gaya','dar gaya','dara diya','dhamki','dhamki di','khatra',
+    'khatara','bachao','help karo','please bachao','maar dega','maar dalega',
+  ],
+  disgust: [
+    'disgusting','disgust','disgusted','gross','revolting','repulsive','horrible','awful',
+    'nasty','sick','vile','nauseating','filthy','dirty','yuck','yucky','repel','repelled',
+    'appalled','appalling','stomach-turning','vomit','puke','stink','stinking','stench',
+    'foul','putrid','rotten','decaying','contaminated','polluted','infested','vermin',
+    'scum','lowlife','trash','garbage','despicable','contemptible','deplorable','shameful',
+    'immoral','unethical','perverted','creepy','sleazy','seedy','slimy','shady',
+    // Hindi disgust
+    'ghatiya','ghataiya','chhi','chhee','thoo','thoo karo','nafrat','nafrat hai',
+    'niraash','nirasha','besharam','besharami','laannat','lanat','sharam karo',
+  ],
+  surprise: [
+    'surprised','surprise','shocked','shock','shocking','unexpected','unbelievable',
+    'incredible','astonished','astonishing','amazed','amazing','stunning','stun','stunned',
+    'wow','omg','whoa','woah','oh my god','oh my','no way','seriously','sudden','suddenly',
+    'cant believe','cannot believe','never expected','out of nowhere','came out of nowhere',
+    'jaw drop','jaw-dropping','mind-blowing','mind blown','speechless','lost for words',
+    'unimaginable','inconceivable','unprecedented','extraordinary','remarkable','phenomenal',
+    // Hindi surprise
+    'arre','arre yaar','are bhai','kya','kya matlab','matlab','sach mein','sach','sachchi',
+    'pakka','pakka sach','yaar kya baat','bhai kya','ajib','ajeeb','ajeeb baat','hairan',
+    'hairaan','dang','kya scene hai','kya ho gaya','yeh kya','yeh kya hai',
+  ],
+};
+
+// ── NEGATION WORDS (English + Hindi) ─────────────────────────────────
+const NEGATION_WORDS = new Set([
+  // English
+  'not','no','never','nobody','nothing','nowhere','neither','nor','cant','cannot',
+  'wont','dont','doesnt','didnt','wasnt','werent','isnt','arent','shouldnt','wouldnt',
+  'couldnt','hardly','barely','scarcely','without','lack','lacking','lacks','failed',
+  'fails','absence','absent','deny','denied','refuse','refused','reject','rejected',
+  // Hindi / Hinglish
+  'nahi','nahin','mat','mत','na','naa','bilkul nahi','kabhi nahi','kuch nahi','koi nahi',
+]);
+
+// ── INTENSIFIERS (English + Hindi) ───────────────────────────────────
+const INTENSIFIERS = {
+  // English
+  'very':1.5,'extremely':1.8,'absolutely':1.7,'completely':1.6,'totally':1.5,
+  'really':1.3,'so':1.2,'too':1.2,'quite':1.1,'rather':1.1,'incredibly':1.8,
+  'exceptionally':1.7,'tremendously':1.6,'remarkably':1.5,'utterly':1.6,
+  'deeply':1.4,'highly':1.4,'super':1.4,'pretty':1.1,'way':1.3,'insanely':1.7,
+  'ridiculously':1.5,'outrageously':1.6,'massively':1.5,'hugely':1.4,'awfully':1.4,
+  'terribly':1.5,'dreadfully':1.4,'horribly':1.5,'genuinely':1.2,'truly':1.3,
+  'literally':1.2,'honestly':1.2,'seriously':1.3,'clearly':1.2,'obviously':1.2,
+  // Hindi intensifiers
+  'bahut':1.5,'bohot':1.5,'ekdum':1.6,'bilkul':1.4,'poora':1.4,'pura':1.4,
+  'ek dum':1.6,'full':1.3,'total':1.4,'totally':1.5,'bada':1.3,'badi':1.3,
+  'zyada':1.3,'adhik':1.3,'itna':1.2,'utna':1.2,'aisa':1.1,
+};
+
+// ── THREAT / VIOLENCE PHRASE PATTERNS ────────────────────────────────
+const THREAT_PATTERNS = [
+  /i\s+will\s+kill/i, /i'll\s+kill/i, /gonna\s+kill/i, /going\s+to\s+kill/i,
+  /will\s+murder/i, /i'll\s+murder/i, /gonna\s+murder/i,
+  /dump\s+(your|his|her|the|ur)\s+body/i, /bury\s+(your|his|her|the|ur)\s+body/i,
+  /drown\s+(you|him|her)/i, /burn\s+(you|him|her|your|his|her)\s+(alive|down)/i,
+  /shoot\s+(you|him|her)/i, /stab\s+(you|him|her)/i,
+  /chop\s+(you|him|her|your)/i, /slice\s+(you|him|her)/i,
+  /beat\s+(you|him|her)\s+(up|to death|dead)/i,
+  /destroy\s+(you|your|him|her)/i, /end\s+(you|your\s+life|his|her)/i,
+  /finish\s+(you|him|her)/i, /eliminate\s+(you|him|her)/i,
+  /maarta\s+hun/i, /maar\s+dunga/i, /maar\s+dalega/i, /tod\s+dunga/i,
+  /jaan\s+se\s+maar/i, /jaan\s+lele\s+ga/i, /khatam\s+kar\s+dunga/i,
+  /tabahi\s+macha/i, /barbaad\s+kar/i,
+];
+
+// ── CORE ANALYSIS ENGINE v3 ───────────────────────────────────────────
+function analyzeText(text) {
+  const raw = text.toLowerCase();
+  const clean = raw.replace(/[^\w\s']/g,' ');
+  const tokens = clean.split(/\s+/).filter(t=>t.length>0);
+  const words = tokens.map(t=>t.replace(/['"]/g,''));
+  const wordCount = tokens.length;
+
+  let posScore=0, negScore=0;
+  let currentIntensifier=1;
+  let negated=false, negWindow=0;
+  const keywordResults=[];
+
+  // ── Phase 1: Threat pattern matching (highest priority) ──
+  let threatScore = 0;
+  for(const pat of THREAT_PATTERNS){
+    if(pat.test(raw)){ threatScore += 3; }
+  }
+
+  // ── Phase 2: Phrase matching (Hinglish) ──
+  for(const ph of HINGLISH_POSITIVE_PHRASES){
+    if(raw.includes(ph)){ posScore+=2; keywordResults.push({word:ph,type:'pos'}); }
+  }
+  for(const ph of HINGLISH_NEGATIVE_PHRASES){
+    if(raw.includes(ph)){ negScore+=2.5; keywordResults.push({word:ph,type:'neg'}); }
+  }
+
+  // ── Phase 3: Sarcasm detection ──
+  let sarcasmDetected = false;
+  for(const pat of SARCASM_PATTERNS){
+    if(pat.test(raw)){ sarcasmDetected=true; break; }
+  }
+
+  // ── Phase 4: Word-level scoring with negation + intensifier ──
+  for(let i=0;i<words.length;i++){
+    const w=words[i];
+    const bigram = i<words.length-1 ? w+' '+words[i+1] : '';
+    const trigram = i<words.length-2 ? w+' '+words[i+1]+' '+words[i+2] : '';
+
+    if(INTENSIFIERS[w]){ currentIntensifier=INTENSIFIERS[w]; continue; }
+    if(INTENSIFIERS[bigram]){ currentIntensifier=INTENSIFIERS[bigram]; continue; }
+    if(NEGATION_WORDS.has(w)){ negated=true; negWindow=4; }
+    if(negWindow>0) negWindow--;
+    else if(negWindow===0&&negated) negated=false;
+
+    let mult = currentIntensifier * (negated?-0.9:1);
+    // Sarcasm flips meaning of positive words
+    if(sarcasmDetected && POSITIVE_WORDS.has(w)) mult = -Math.abs(mult)*1.2;
+    currentIntensifier=1;
+
+    if(POSITIVE_WORDS.has(w)||POSITIVE_WORDS.has(bigram)||POSITIVE_WORDS.has(trigram)){
+      const match=POSITIVE_WORDS.has(trigram)?trigram:POSITIVE_WORDS.has(bigram)?bigram:w;
+      if(mult<0){ negScore+=Math.abs(mult)*1.1; keywordResults.push({word:match,type:'neg'}); }
+      else{ posScore+=mult; keywordResults.push({word:match,type:'pos'}); }
+    }
+    if(NEGATIVE_WORDS.has(w)||NEGATIVE_WORDS.has(bigram)||NEGATIVE_WORDS.has(trigram)){
+      const match=NEGATIVE_WORDS.has(trigram)?trigram:NEGATIVE_WORDS.has(bigram)?bigram:w;
+      if(mult<0){ posScore+=Math.abs(mult)*0.7; keywordResults.push({word:match,type:'pos'}); }
+      else{ negScore+=mult; keywordResults.push({word:match,type:'neg'}); }
+    }
+  }
+
+  // Add threat score on top
+  negScore += threatScore;
+
+  // ── Normalize ──
+  const total = posScore+negScore || 1;
+  let posP = Math.min(posScore/total,1);
+  let negP = Math.min(negScore/total,1);
+  const signalStrength = Math.min((posScore+negScore)/Math.max(wordCount*0.08,1),1);
+  let neuP = Math.max(0,(1-signalStrength)*0.5);
+  const sum2 = posP+negP+neuP||1;
+  posP=posP/sum2; negP=negP/sum2; neuP=neuP/sum2;
+
+  const clampedPol = Math.max(-1,Math.min(1,(posP-negP)));
+  const subjectivity = Math.min(1,signalStrength*1.4);
+
+  // Sarcasm override: flip if sarcasm + mostly positive words
+  if(sarcasmDetected && posP>negP){ const tmp=posP; posP=negP*0.6; negP=tmp*0.7; }
+
+  // ── Primary sentiment ──
+  let sentiment,emoji,description,bc,bg,tc;
+  if(posP>negP && posP>neuP){
+    sentiment='POSITIVE'; emoji='😊'; bc='rgba(0,212,170,.4)'; bg='rgba(0,212,170,.08)'; tc='var(--pos)';
+    if(posP>0.75) description='Very strong positive sentiment detected';
+    else description='Positive sentiment detected with moderate confidence';
+  } else if(negP>posP && negP>neuP){
+    sentiment='NEGATIVE'; emoji='😡'; bc='rgba(255,107,107,.4)'; bg='rgba(255,107,107,.08)'; tc='var(--neg)';
+    if(threatScore>0) description='Threatening / violent language detected — High risk';
+    else if(sarcasmDetected) description='Sarcastic tone detected — underlying negative sentiment';
+    else if(negP>0.75) description='Strong negative sentiment — significant distress or dissatisfaction';
+    else description='Negative sentiment detected in the text';
+  } else {
+    sentiment='NEUTRAL'; emoji='😐'; bc='rgba(160,168,200,.4)'; bg='rgba(160,168,200,.08)'; tc='var(--neu)';
+    description='Balanced or objective tone — no dominant emotional signal';
+  }
+
+  const confidence = Math.min(98,Math.round(Math.max(posP,negP,neuP)*100)+Math.round(signalStrength*15));
+
+  // ── Emotion detection ──
+  const emotions={joy:0,anger:0,sadness:0,fear:0,disgust:0,surprise:0};
+  for(const[emo,kws] of Object.entries(EMOTION_LEXICON)){
+    for(const kw of kws){
+      if(raw.includes(kw)) emotions[emo]+=(kw.includes(' ')?2.5:1);
+    }
+  }
+  if(threatScore>0){ emotions.anger+=threatScore*2; emotions.fear+=threatScore; }
+  if(sentiment==='POSITIVE'){ emotions.joy+=posScore*2; }
+  if(sentiment==='NEGATIVE'){ emotions.anger+=negScore*0.8; emotions.sadness+=negScore*0.5; }
+  if(sarcasmDetected){ emotions.disgust+=3; emotions.anger+=2; }
+
+  const emoTotal=Object.values(emotions).reduce((a,b)=>a+b,0)||1;
+  const emoNorm={};
+  for(const[k,v] of Object.entries(emotions)) emoNorm[k]=Math.round(v/emoTotal*100);
+
+  if(emoTotal<1){
+    if(sentiment==='POSITIVE'){emoNorm.joy=62;emoNorm.surprise=18;emoNorm.anger=5;emoNorm.sadness=5;emoNorm.fear=5;emoNorm.disgust=5;}
+    else if(sentiment==='NEGATIVE'&&threatScore>0){emoNorm.anger=55;emoNorm.fear=25;emoNorm.disgust=12;emoNorm.sadness=5;emoNorm.joy=2;emoNorm.surprise=1;}
+    else if(sentiment==='NEGATIVE'){emoNorm.anger=42;emoNorm.sadness=30;emoNorm.disgust=16;emoNorm.fear=7;emoNorm.joy=3;emoNorm.surprise=2;}
+    else{emoNorm.joy=22;emoNorm.sadness=18;emoNorm.anger=18;emoNorm.surprise=22;emoNorm.fear=10;emoNorm.disgust=10;}
+  }
+
+  // ── Keywords ──
+  const seen=new Set(); const keywords=[];
+  for(const k of keywordResults){
+    if(!seen.has(k.word)&&k.word.length>1){ seen.add(k.word); keywords.push(k); }
+    if(keywords.length>=14) break;
+  }
+  if(sarcasmDetected) keywords.unshift({word:'[sarcasm detected]',type:'neg'});
+  if(threatScore>0) keywords.unshift({word:'[threat detected]',type:'neg'});
+
+  return {
+    sentiment,emoji,description,bc,bg,tc,confidence,
+    posP:Math.round(posP*100), negP:Math.round(negP*100), neuP:Math.round(neuP*100),
+    polarity:clampedPol.toFixed(2), subjectivity:Math.round(subjectivity*100),
+    wordCount, emotions:emoNorm, keywords, sarcasm:sarcasmDetected, threat:threatScore>0
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATE & CHARTS
+// ═══════════════════════════════════════════════════════════════
+let donutChart=null, trendChart=null;
+const history=[];
+const EXAMPLES=[
+  "I absolutely love this product! It's amazing, works perfectly and the delivery was super fast. Highly recommend it to everyone!",
+  "This is the worst experience I have ever had. The product stopped working after 2 days, customer service was rude and useless. Total waste of money. Never buying again.",
+  "The product quality is decent but the delivery took too long. Some features are great but others are confusing. Overall it's okay, not the best not the worst.",
+  "I'm feeling really sad and lonely today. Nothing seems to be going right. I miss my friends and I feel hopeless about the future.",
+  "I cannot believe how good this is! I was totally shocked by the incredible results. This is unbelievably surprising and exceeded all my expectations completely!"
+];
+
+function setExample(i){ document.getElementById('inputText').value=EXAMPLES[i]; updateCharCount(); }
+function updateCharCount(){ document.getElementById('charCount').textContent=document.getElementById('inputText').value.length; }
+document.getElementById('inputText').addEventListener('input',updateCharCount);
+
+function clearAll(){
+  document.getElementById('inputText').value='';
+  document.getElementById('charCount').textContent='0';
+  document.getElementById('results').classList.remove('show');
+}
+
+// ── ANALYZE ───────────────────────────────────────────────────
+async function analyze(){
+  const text=document.getElementById('inputText').value.trim();
+  if(!text){ alert('Please enter some text to analyze!'); return; }
+
+  // Show loading
+  const btn=document.getElementById('analyzeBtn');
+  btn.disabled=true; btn.innerHTML='<span>⏳</span> Analyzing...';
+  document.getElementById('loadingBar').classList.add('active');
+  document.getElementById('results').classList.remove('show');
+
+  // Simulate AI processing delay (realistic feel)
+  await new Promise(r=>setTimeout(r,1200));
+
+  const res=analyzeText(text);
+
+  // Hide loading
+  document.getElementById('loadingBar').classList.remove('active');
+  btn.disabled=false; btn.innerHTML='<span>⚡</span> Analyze Now';
+
+  // Render results
+  renderResults(res, text);
+
+  // Add to history
+  addHistory(text, res);
+}
+
+// ── RENDER ────────────────────────────────────────────────────
+function renderResults(r, text){
+  // Banner
+  const banner=document.getElementById('resultBanner');
+  banner.style.cssText=`--bc:${r.bc};--bg2:${r.bg};`;
+  document.getElementById('resEmoji').textContent=r.emoji;
+  document.getElementById('resSentiment').textContent=r.sentiment;
+  document.getElementById('resSentiment').style.color=r.tc;
+  document.getElementById('resDescription').textContent=r.description;
+  document.getElementById('resConfidence').textContent=r.confidence+'%';
+
+  // Stats
+  animateVal('posScore',r.posP,'%');
+  animateVal('negScore',r.negP,'%');
+  animateVal('neuScore',r.neuP,'%');
+  document.getElementById('polarityScore').textContent=r.polarity;
+  animateVal('subjectivityScore',r.subjectivity,'%');
+  document.getElementById('wordCount').textContent=r.wordCount;
+
+  // Donut chart
+  renderDonut(r.posP,r.negP,r.neuP);
+
+  // Emotion bars
+  const eMap={joy:'var(--joy)',anger:'var(--anger)',sadness:'var(--sad)',fear:'var(--fear)',disgust:'var(--disgust)',surprise:'var(--surprise)'};
+  for(const[e,pct] of Object.entries(r.emotions)){
+    setTimeout(()=>{
+      const bar=document.getElementById('bar-'+e);
+      const pctEl=document.getElementById('pct-'+e);
+      if(bar){ bar.style.width=pct+'%'; }
+      if(pctEl){ pctEl.textContent=pct+'%'; }
+    },300);
+  }
+
+  // Keywords
+  const cloud=document.getElementById('keywordCloud');
+  cloud.innerHTML='';
+  r.keywords.forEach((k,i)=>{
+    const tag=document.createElement('span');
+    tag.className=`kw-tag kw-${k.type}`;
+    tag.style.animationDelay=i*0.06+'s';
+    tag.textContent=k.word;
+    cloud.appendChild(tag);
+  });
+  if(r.keywords.length===0){
+    cloud.innerHTML='<span style="color:var(--muted);font-size:.85rem;">No strong sentiment keywords detected in this text.</span>';
+  }
+
+  // Show results
+  document.getElementById('results').classList.add('show');
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function animateVal(id, target, suffix=''){
+  const el=document.getElementById(id); let cur=0;
+  const step=target/20;
+  const timer=setInterval(()=>{
+    cur=Math.min(cur+step,target);
+    el.textContent=Math.round(cur)+suffix;
+    if(cur>=target) clearInterval(timer);
+  },30);
+}
+
+// ── DONUT CHART ───────────────────────────────────────────────
+function renderDonut(pos,neg,neu){
+  const ctx=document.getElementById('donutChart').getContext('2d');
+  if(donutChart) donutChart.destroy();
+  donutChart=new Chart(ctx,{
+    type:'doughnut',
+    data:{
+      labels:['Positive','Negative','Neutral'],
+      datasets:[{
+        data:[pos,neg,neu],
+        backgroundColor:['rgba(0,212,170,.8)','rgba(255,107,107,.8)','rgba(160,168,200,.8)'],
+        borderColor:['#00d4aa','#ff6b6b','#a0a8c8'],
+        borderWidth:2,
+        hoverOffset:8
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      cutout:'70%',
+      plugins:{
+        legend:{ position:'bottom', labels:{ color:'#7a7f96', font:{family:'Space Mono',size:11}, boxWidth:12, padding:16 } },
+        tooltip:{ callbacks:{ label:c=>' '+c.label+': '+c.parsed+'%' } }
+      },
+      animation:{ animateRotate:true, duration:800 }
+    }
+  });
+}
+
+// ── TREND CHART ───────────────────────────────────────────────
+function renderTrend(){
+  const ctx=document.getElementById('trendChart').getContext('2d');
+  if(trendChart) trendChart.destroy();
+  const last8=history.slice(-8);
+  const labels=last8.map((_,i)=>'#'+(i+1));
+  const posData=last8.map(h=>h.posP);
+  const negData=last8.map(h=>h.negP);
+  trendChart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        { label:'Positive', data:posData, borderColor:'#00d4aa', backgroundColor:'rgba(0,212,170,.15)', tension:.4, fill:true, pointBackgroundColor:'#00d4aa', pointRadius:4 },
+        { label:'Negative', data:negData, borderColor:'#ff6b6b', backgroundColor:'rgba(255,107,107,.1)', tension:.4, fill:true, pointBackgroundColor:'#ff6b6b', pointRadius:4 }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      scales:{
+        x:{ grid:{color:'rgba(255,255,255,.05)'}, ticks:{color:'#7a7f96',font:{family:'Space Mono',size:10}} },
+        y:{ grid:{color:'rgba(255,255,255,.05)'}, ticks:{color:'#7a7f96',font:{family:'Space Mono',size:10}}, min:0, max:100 }
+      },
+      plugins:{
+        legend:{ labels:{color:'#7a7f96',font:{family:'Space Mono',size:10},boxWidth:12} }
+      },
+      animation:{duration:600}
+    }
+  });
+}
+
+// ── HISTORY ───────────────────────────────────────────────────
+function addHistory(text, res){
+  history.unshift({text, ...res, time:new Date().toLocaleTimeString()});
+  renderHistory();
+  renderTrend();
+}
+
+function renderHistory(){
+  const section=document.getElementById('historySection');
+  const list=document.getElementById('historyList');
+  section.style.display='block';
+  list.innerHTML='';
+  history.slice(0,8).forEach((h,i)=>{
+    const colors={POSITIVE:'#00d4aa',NEGATIVE:'#ff6b6b',NEUTRAL:'#a0a8c8'};
+    const item=document.createElement('div');
+    item.className='history-item';
+    item.innerHTML=`
+      <div class="h-dot" style="background:${colors[h.sentiment]}"></div>
+      <div class="h-text">${h.text.substring(0,80)}${h.text.length>80?'...':''}</div>
+      <div class="h-sentiment" style="color:${colors[h.sentiment]}">${h.sentiment}</div>
+      <div class="h-time">${h.time}</div>`;
+    item.onclick=()=>{ document.getElementById('inputText').value=h.text; analyze(); };
+    list.appendChild(item);
+  });
+}
+
+// ── TABS ──────────────────────────────────────────────────────
+function switchTab(tab){
+  document.querySelectorAll('.nav-pill').forEach(p=>p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-analyze').style.display=tab==='analyze'?'block':'none';
+  const ab=document.getElementById('tab-about');
+  tab==='about'?ab.classList.add('show'):ab.classList.remove('show');
+}
+</script>
+</body>
+</html>
